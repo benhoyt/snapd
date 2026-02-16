@@ -297,8 +297,6 @@ func (d *Daemon) addRoutes() {
 		c.d = d
 		d.router.Handle(c.Path, c)
 	}
-
-	d.router.Handle("/", NotFound("not found"))
 }
 
 var (
