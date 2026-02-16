@@ -168,9 +168,8 @@ func validationSetResultFromTracking(st *state.State, tr *assertstate.Validation
 }
 
 func getValidationSet(c *Command, r *http.Request, user *auth.UserState) Response {
-	vars := muxVars(r)
-	accountID := vars["account"]
-	name := vars["name"]
+	accountID := r.PathValue("account")
+	name := r.PathValue("name")
 
 	if !asserts.IsValidAccountID(accountID) {
 		return BadRequest("invalid account ID %q", accountID)
@@ -224,9 +223,8 @@ type validationSetApplyRequest struct {
 }
 
 func applyValidationSet(c *Command, r *http.Request, user *auth.UserState) Response {
-	vars := muxVars(r)
-	accountID := vars["account"]
-	name := vars["name"]
+	accountID := r.PathValue("account")
+	name := r.PathValue("name")
 
 	if !asserts.IsValidAccountID(accountID) {
 		return BadRequest("invalid account ID %q", accountID)

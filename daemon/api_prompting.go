@@ -361,8 +361,7 @@ func getPrompts(c *Command, r *http.Request, user *auth.UserState) Response {
 }
 
 func getPrompt(c *Command, r *http.Request, user *auth.UserState) Response {
-	vars := muxVars(r)
-	id := vars["id"]
+	id := r.PathValue("id")
 
 	userID, errorResp := getUserID(r)
 	if errorResp != nil {
@@ -389,8 +388,7 @@ func getPrompt(c *Command, r *http.Request, user *auth.UserState) Response {
 }
 
 func postPrompt(c *Command, r *http.Request, user *auth.UserState) Response {
-	vars := muxVars(r)
-	id := vars["id"]
+	id := r.PathValue("id")
 
 	userID, errorResp := getUserID(r)
 	if errorResp != nil {
@@ -497,8 +495,7 @@ func postRules(c *Command, r *http.Request, user *auth.UserState) Response {
 }
 
 func getRule(c *Command, r *http.Request, user *auth.UserState) Response {
-	vars := muxVars(r)
-	id := vars["id"]
+	id := r.PathValue("id")
 
 	userID, errorResp := getUserID(r)
 	if errorResp != nil {
@@ -523,8 +520,7 @@ func getRule(c *Command, r *http.Request, user *auth.UserState) Response {
 }
 
 func postRule(c *Command, r *http.Request, user *auth.UserState) Response {
-	vars := muxVars(r)
-	id := vars["id"]
+	id := r.PathValue("id")
 
 	userID, errorResp := getUserID(r)
 	if errorResp != nil {

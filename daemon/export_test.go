@@ -24,8 +24,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gorilla/mux"
-
 	"github.com/snapcore/snapd/asserts"
 	"github.com/snapcore/snapd/asserts/snapasserts"
 	"github.com/snapcore/snapd/boot"
@@ -69,8 +67,8 @@ func NewWithOverlord(o *overlord.Overlord) *Daemon {
 	return d
 }
 
-func (d *Daemon) RouterMatch(req *http.Request, m *mux.RouteMatch) bool {
-	return d.router.Match(req, m)
+func (d *Daemon) RouterHandler(req *http.Request) (http.Handler, string) {
+	return d.router.Handler(req)
 }
 
 func (d *Daemon) Overlord() *overlord.Overlord {
@@ -107,14 +105,6 @@ func MockEnsureStateSoon(mock func(*state.State)) (original func(*state.State), 
 	ensureStateSoon = mock
 	return ensureStateSoonImpl, func() {
 		ensureStateSoon = oldEnsureStateSoon
-	}
-}
-
-func MockMuxVars(vars func(*http.Request) map[string]string) (restore func()) {
-	old := muxVars
-	muxVars = vars
-	return func() {
-		muxVars = old
 	}
 }
 

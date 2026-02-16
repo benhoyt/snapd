@@ -38,8 +38,7 @@ var (
 )
 
 func snapIconGet(c *Command, r *http.Request, user *auth.UserState) Response {
-	vars := muxVars(r)
-	name := vars["name"]
+	name := r.PathValue("name")
 
 	return iconGet(c.d.overlord.State(), name)
 }

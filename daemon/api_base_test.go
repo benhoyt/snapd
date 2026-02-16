@@ -35,7 +35,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gorilla/mux"
 	"golang.org/x/crypto/sha3"
 	"gopkg.in/check.v1"
 	"gopkg.in/tomb.v2"
@@ -81,7 +80,6 @@ type apiBaseSuite struct {
 
 	rsnaps            []*snap.Info
 	err               error
-	vars              map[string]string
 	storeSearch       store.Search
 	suggestedCurrency string
 	d                 *daemon.Daemon
@@ -101,7 +99,6 @@ type apiBaseSuite struct {
 	connectivityResult map[string]bool
 
 	restoreSanitize func()
-	restoreMuxVars  func()
 
 	authUser *auth.UserState
 
@@ -146,12 +143,7 @@ func TestMain(m *testing.M) {
 			continue
 		}
 		actions := actionsMap.Actions(cmd)
-		var path string
-		if cmd.Path != "" {
-			path = cmd.Path
-		} else {
-			path = cmd.PathPrefix
-		}
+		path := cmd.Path
 		for _, action := range cmd.Actions {
 			if l, exists := disableMap[path]; exists && strutil.ListContains(l, action) {
 				continue
@@ -271,10 +263,6 @@ func (s *apiBaseSuite) CleanDownloadsCache() error {
 	return nil
 }
 
-func (s *apiBaseSuite) muxVars(*http.Request) map[string]string {
-	return s.vars
-}
-
 // DisableActionsCheck disables the final check for command action coverage
 func (s *apiBaseSuite) DisableActionsCheck(path, action string) {
 	disableMutex.Lock()
@@ -296,7 +284,6 @@ func mapToSlice(m *sync.Map) []string {
 
 func (s *apiBaseSuite) SetUpSuite(c *check.C) {
 	atomic.AddInt64(&callCount, 1)
-	s.restoreMuxVars = daemon.MockMuxVars(s.muxVars)
 	s.restoreRelease = sandbox.MockForceDevMode(false)
 	s.systemctlRestorer = systemd.MockSystemctl(s.systemctl)
 	s.restoreSanitize = snap.MockSanitizePlugsSlots(func(snapInfo *snap.Info) {})
@@ -310,7 +297,6 @@ func (s *apiBaseSuite) SetUpSuite(c *check.C) {
 func (s *apiBaseSuite) TearDownSuite(c *check.C) {
 	missingReg := mapToSlice(&s.missingChangeRegistrations)
 	c.Assert(missingReg, check.HasLen, 0, check.Commentf("Found missing change kind registrations %v Register new change kinds using swfeats.RegChangeKind", missingReg))
-	s.restoreMuxVars()
 	s.restoreRelease()
 	s.systemctlRestorer()
 	s.restoreSanitize()
@@ -351,7 +337,6 @@ func (s *apiBaseSuite) SetUpTest(c *check.C) {
 	s.suggestedCurrency = ""
 	s.storeSearch = store.Search{}
 	s.err = nil
-	s.vars = nil
 	s.user = nil
 	s.d = nil
 	s.ctx = nil
@@ -745,16 +730,92 @@ version: %s
 	return snapInfo
 }
 
-func handlerCommand(c *check.C, d *daemon.Daemon, req *http.Request) (cmd *daemon.Command, vars map[string]string) {
-	m := &mux.RouteMatch{}
-	if !d.RouterMatch(req, m) {
+func handlerCommand(c *check.C, d *daemon.Daemon, req *http.Request) *daemon.Command {
+	// Since http.ServeMux wraps handlers and doesn't preserve the original type,
+	// we need to match the path manually against registered commands
+	path := req.URL.Path
+	var matchedCmd *daemon.Command
+	var matchedPattern string
+	
+	for _, cmd := range daemon.APICommands() {
+		pattern := cmd.Path
+		if matchesPattern(pattern, path) {
+			// Choose the most specific match (longest pattern)
+			if matchedCmd == nil || len(pattern) > len(matchedPattern) {
+				matchedCmd = cmd
+				matchedPattern = pattern
+			}
+		}
+	}
+	
+	if matchedCmd == nil {
 		c.Fatalf("no command for URL %q", req.URL)
 	}
-	cmd, ok := m.Handler.(*daemon.Command)
-	if !ok {
-		c.Fatalf("no command for URL %q", req.URL)
+	
+	// Extract path values and set them on the request
+	setPathValues(req, matchedPattern, path)
+	return matchedCmd
+}
+
+// matchesPattern checks if a URL path matches a ServeMux pattern
+func matchesPattern(pattern, path string) bool {
+	// Handle exact match with {$}
+	if strings.HasSuffix(pattern, "{$}") {
+		return path == strings.TrimSuffix(pattern, "{$}")
 	}
-	return cmd, m.Vars
+	
+	// Handle wildcard patterns like "/v2/debug/pprof/{profile...}"
+	if strings.Contains(pattern, "{") && strings.HasSuffix(pattern, "...}") {
+		prefix := pattern[:strings.LastIndex(pattern, "{")]
+		return strings.HasPrefix(path, prefix)
+	}
+	
+	// Handle regular patterns with path parameters like "/v2/snaps/{name}"
+	patternParts := strings.Split(pattern, "/")
+	pathParts := strings.Split(path, "/")
+	
+	if len(patternParts) != len(pathParts) {
+		return false
+	}
+	
+	for i, part := range patternParts {
+		if strings.HasPrefix(part, "{") && strings.HasSuffix(part, "}") {
+			// This is a path parameter, it matches anything
+			continue
+		}
+		if part != pathParts[i] {
+			return false
+		}
+	}
+	
+	return true
+}
+
+// setPathValues extracts path parameters from the URL based on the pattern
+// and sets them on the request using SetPathValue
+func setPathValues(req *http.Request, pattern, path string) {
+	// Parse pattern like "/v2/snaps/{name}" or "/v2/changes/{id}"
+	patternParts := strings.Split(pattern, "/")
+	pathParts := strings.Split(path, "/")
+	
+	// Handle wildcard patterns like "/v2/debug/pprof/{profile...}"
+	if len(patternParts) > 0 && strings.HasSuffix(patternParts[len(patternParts)-1], "...}") {
+		key := strings.TrimSuffix(strings.TrimPrefix(patternParts[len(patternParts)-1], "{"), "...}")
+		value := strings.Join(pathParts[len(patternParts)-1:], "/")
+		req.SetPathValue(key, value)
+		return
+	}
+	
+	if len(patternParts) != len(pathParts) {
+		return
+	}
+	
+	for i, part := range patternParts {
+		if strings.HasPrefix(part, "{") && strings.HasSuffix(part, "}") {
+			key := strings.Trim(part, "{}")
+			req.SetPathValue(key, pathParts[i])
+		}
+	}
 }
 
 func (s *apiBaseSuite) checkGetOnly(c *check.C, req *http.Request) {
@@ -762,7 +823,7 @@ func (s *apiBaseSuite) checkGetOnly(c *check.C, req *http.Request) {
 		panic("call s.daemon(c) etc in your test first")
 	}
 
-	cmd, _ := handlerCommand(c, s.d, req)
+	cmd := handlerCommand(c, s.d, req)
 	c.Check(cmd.POST, check.IsNil)
 	c.Check(cmd.PUT, check.IsNil)
 	c.Check(cmd.GET, check.NotNil)
@@ -802,8 +863,7 @@ func (s *apiBaseSuite) req(c *check.C, req *http.Request, u *auth.UserState, act
 		panic("call s.daemon(c) etc in your test first")
 	}
 
-	cmd, vars := handlerCommand(c, s.d, req)
-	s.vars = vars
+	cmd := handlerCommand(c, s.d, req)
 	var f daemon.ResponseFunc
 	var acc, expAcc daemon.AccessChecker
 	var whichAcc string
@@ -879,8 +939,7 @@ func (s *apiBaseSuite) serveHTTP(c *check.C, w http.ResponseWriter, req *http.Re
 		panic("call s.daemon(c) etc in your test first")
 	}
 
-	cmd, vars := handlerCommand(c, s.d, req)
-	s.vars = vars
+	cmd := handlerCommand(c, s.d, req)
 	if req.Method == "POST" && req.Body != nil && (req.Header.Get("Content-Type") == "application/json" || req.Header.Get("Content-Type") == "") {
 		bodyBytes, err := io.ReadAll(req.Body)
 		c.Assert(err, check.IsNil)

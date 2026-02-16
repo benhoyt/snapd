@@ -36,8 +36,7 @@ var snapFileCmd = &Command{
 }
 
 func getSnapFile(c *Command, r *http.Request, user *auth.UserState) Response {
-	vars := muxVars(r)
-	name := vars["name"]
+	name := r.PathValue("name")
 
 	st := c.d.overlord.State()
 	st.Lock()
