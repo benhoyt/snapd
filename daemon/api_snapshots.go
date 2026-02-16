@@ -186,8 +186,7 @@ func getSnapshotExport(c *Command, r *http.Request, user *auth.UserState) Respon
 	st.Lock()
 	defer st.Unlock()
 
-	vars := muxVars(r)
-	sid := vars["id"]
+	sid := r.PathValue("id")
 	setID, err := strconv.ParseUint(sid, 10, 64)
 	if err != nil {
 		return BadRequest("'id' must be a positive base 10 number; got %q", sid)

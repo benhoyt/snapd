@@ -48,8 +48,7 @@ var (
 var configureSnapChangeKind = swfeats.RegisterChangeKind("configure-snap")
 
 func getSnapConf(c *Command, r *http.Request, user *auth.UserState) Response {
-	vars := muxVars(r)
-	snapName := configstate.RemapSnapFromRequest(vars["name"])
+	snapName := configstate.RemapSnapFromRequest(r.PathValue("name"))
 
 	keys := strutil.CommaSeparatedList(r.URL.Query().Get("keys"))
 
@@ -146,8 +145,7 @@ func pruneExperimentalFlags(key string, val any) any {
 }
 
 func setSnapConf(c *Command, r *http.Request, user *auth.UserState) Response {
-	vars := muxVars(r)
-	snapName := configstate.RemapSnapFromRequest(vars["name"])
+	snapName := configstate.RemapSnapFromRequest(r.PathValue("name"))
 
 	var patchValues map[string]any
 	if err := jsonutil.DecodeWithNumber(r.Body, &patchValues); err != nil {

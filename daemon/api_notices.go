@@ -319,7 +319,7 @@ func getNotice(c *Command, r *http.Request, user *auth.UserState) Response {
 	if err != nil {
 		return Forbidden("cannot determine UID of request, so cannot retrieve notice")
 	}
-	noticeID := muxVars(r)["id"]
+	noticeID := r.PathValue("id")
 	noticeMgr := c.d.overlord.NoticeManager()
 	notice := noticeMgr.Notice(noticeID)
 	if notice == nil {

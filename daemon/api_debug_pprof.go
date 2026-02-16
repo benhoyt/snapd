@@ -23,25 +23,43 @@ import (
 	"net/http"
 	"net/http/pprof"
 
-	"github.com/gorilla/mux"
-
 	"github.com/snapcore/snapd/overlord/auth"
 )
 
 var debugPprofCmd = &Command{
-	PathPrefix: "/v2/debug/pprof/",
+	Path:       "/v2/debug/pprof/{profile...}",
 	GET:        getPprof,
 	ReadAccess: rootAccess{},
 }
 
 func getPprof(c *Command, r *http.Request, user *auth.UserState) Response {
-	router := mux.NewRouter()
-	router.HandleFunc("/v2/debug/pprof/cmdline", pprof.Cmdline)
-	router.HandleFunc("/v2/debug/pprof/profile", pprof.Profile)
-	router.HandleFunc("/v2/debug/pprof/symbol", pprof.Symbol)
-	router.HandleFunc("/v2/debug/pprof/trace", pprof.Trace)
-	for _, profile := range []string{"heap", "allocs", "block", "threadcreate", "goroutine", "mutex"} {
-		router.Handle("/v2/debug/pprof/"+profile, pprof.Handler(profile))
+	profile := r.PathValue("profile")
+	switch profile {
+	case "cmdline":
+		return pprofHandlerFunc(pprof.Cmdline)
+	case "profile":
+		return pprofHandlerFunc(pprof.Profile)
+	case "symbol":
+		return pprofHandlerFunc(pprof.Symbol)
+	case "trace":
+		return pprofHandlerFunc(pprof.Trace)
+	case "heap", "allocs", "block", "threadcreate", "goroutine", "mutex":
+		return &pprofHandler{handler: pprof.Handler(profile)}
+	default:
+		return NotFound("unknown pprof profile")
 	}
-	return router
+}
+
+type pprofHandlerFunc func(http.ResponseWriter, *http.Request)
+
+func (h pprofHandlerFunc) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	h(w, r)
+}
+
+type pprofHandler struct {
+	handler http.Handler
+}
+
+func (h *pprofHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	h.handler.ServeHTTP(w, r)
 }

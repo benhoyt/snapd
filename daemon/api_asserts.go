@@ -143,7 +143,7 @@ func assertsFindManyInState(c *Command, at *asserts.AssertionType, headers map[s
 }
 
 func assertsFindMany(c *Command, r *http.Request, user *auth.UserState) Response {
-	assertTypeName := muxVars(r)["assertType"]
+	assertTypeName := r.PathValue("assertType")
 	assertType := asserts.Type(assertTypeName)
 	if assertType == nil {
 		return BadRequest("invalid assert type: %q", assertTypeName)

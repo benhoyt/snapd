@@ -36,11 +36,6 @@ var (
 
 func getSections(c *Command, r *http.Request, user *auth.UserState) Response {
 	// TODO: test this
-	route := c.d.router.Get(snapCmd.Path)
-	if route == nil {
-		return InternalError("cannot find route for snaps")
-	}
-
 	theStore := storeFrom(c.d)
 
 	sections, err := theStore.Sections(r.Context(), user)

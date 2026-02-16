@@ -286,7 +286,7 @@ func sandboxFeatures(backends []interfaces.SecurityBackend) map[string][]string 
 }
 
 func getChange(c *Command, r *http.Request, user *auth.UserState) Response {
-	chID := muxVars(r)["id"]
+	chID := r.PathValue("id")
 	state := c.d.overlord.State()
 	state.Lock()
 	defer state.Unlock()
@@ -358,7 +358,7 @@ func getChanges(c *Command, r *http.Request, user *auth.UserState) Response {
 }
 
 func abortChange(c *Command, r *http.Request, user *auth.UserState) Response {
-	chID := muxVars(r)["id"]
+	chID := r.PathValue("id")
 	state := c.d.overlord.State()
 	state.Lock()
 	defer state.Unlock()

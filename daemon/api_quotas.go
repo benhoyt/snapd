@@ -160,8 +160,7 @@ func getQuotaGroups(c *Command, r *http.Request, _ *auth.UserState) Response {
 
 // getQuotaGroupInfo returns details of a single quota Group.
 func getQuotaGroupInfo(c *Command, r *http.Request, _ *auth.UserState) Response {
-	vars := muxVars(r)
-	groupName := vars["group"]
+	groupName := r.PathValue("group")
 	if err := naming.ValidateQuotaGroup(groupName); err != nil {
 		return BadRequest(err.Error())
 	}

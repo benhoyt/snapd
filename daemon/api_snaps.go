@@ -103,8 +103,7 @@ var (
 )
 
 func getSnapInfo(c *Command, r *http.Request, user *auth.UserState) Response {
-	vars := muxVars(r)
-	name := vars["name"]
+	name := r.PathValue("name")
 
 	st := c.d.overlord.State()
 	about, err := localSnapInfo(st, name)
@@ -116,19 +115,11 @@ func getSnapInfo(c *Command, r *http.Request, user *auth.UserState) Response {
 		return InternalError("%v", err)
 	}
 
-	route := c.d.router.Get(c.Path)
-	if route == nil {
-		return InternalError("cannot find route for %q snap", name)
-	}
-
-	url, err := route.URL("name", name)
-	if err != nil {
-		return InternalError("cannot build URL for %q snap: %v", name, err)
-	}
+	url := strings.Replace(c.Path, "{name}", name, 1)
 
 	sd := servicestate.NewStatusDecorator(progress.Null)
 
-	result := webify(mapLocal(about, sd), url.String())
+	result := webify(mapLocal(about, sd), url)
 
 	return SyncResponse(result)
 }
@@ -139,13 +130,8 @@ func webify(result *client.Snap, resource string) *client.Snap {
 	}
 	result.Icon = ""
 
-	route := snapIconCmd.d.router.Get(snapIconCmd.Path)
-	if route != nil {
-		url, err := route.URL("name", result.Name)
-		if err == nil {
-			result.Icon = url.String()
-		}
-	}
+	iconPath := strings.Replace(snapIconCmd.Path, "{name}", result.Name, 1)
+	result.Icon = iconPath
 
 	return result
 }
@@ -177,11 +163,6 @@ func changeKind(action string) (string, bool) {
 }
 
 func postSnap(c *Command, r *http.Request, user *auth.UserState) Response {
-	route := c.d.router.Get(stateChangeCmd.Path)
-	if route == nil {
-		return InternalError("cannot find route for change")
-	}
-
 	decoder := json.NewDecoder(r.Body)
 	var inst snapInstruction
 	if err := decoder.Decode(&inst); err != nil {
@@ -196,8 +177,7 @@ func postSnap(c *Command, r *http.Request, user *auth.UserState) Response {
 		inst.userID = user.ID
 	}
 
-	vars := muxVars(r)
-	inst.Snaps = []string{vars["name"]}
+	inst.Snaps = []string{r.PathValue("name")}
 
 	if len(inst.CompsRaw) > 0 {
 		// must be a string slice for /v2/snaps/<snap>
@@ -847,11 +827,6 @@ func postSnaps(c *Command, r *http.Request, user *auth.UserState) Response {
 }
 
 func snapOpMany(c *Command, r *http.Request, user *auth.UserState) Response {
-	route := c.d.router.Get(stateChangeCmd.Path)
-	if route == nil {
-		return InternalError("cannot find route for change")
-	}
-
 	decoder := json.NewDecoder(r.Body)
 	var inst snapInstruction
 	if err := decoder.Decode(&inst); err != nil {
@@ -1269,11 +1244,6 @@ func getSnapsInfo(c *Command, r *http.Request, user *auth.UserState) Response {
 		return searchStore(c, r, user)
 	}
 
-	route := c.d.router.Get(snapCmd.Path)
-	if route == nil {
-		return InternalError("cannot find route for snaps")
-	}
-
 	query := r.URL.Query()
 	var sel snapSelect
 	switch query.Get("select") {
@@ -1310,13 +1280,9 @@ func getSnapsInfo(c *Command, r *http.Request, user *auth.UserState) Response {
 		name := x.info.InstanceName()
 		rev := x.info.Revision
 
-		url, err := route.URL("name", name)
-		if err != nil {
-			logger.Noticef("Cannot build URL for snap %q revision %s: %v", name, rev, err)
-			continue
-		}
+		url := strings.Replace(snapCmd.Path, "{name}", name, 1)
 
-		data, err := json.Marshal(webify(mapLocal(x, sd), url.String()))
+		data, err := json.Marshal(webify(mapLocal(x, sd), url))
 		if err != nil {
 			return InternalError("cannot serialize snap %q revision %s: %v", name, rev, err)
 		}

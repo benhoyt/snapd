@@ -147,11 +147,6 @@ type sideloadFlags struct {
 }
 
 func sideloadOrTrySnap(ctx context.Context, c *Command, body io.ReadCloser, boundary string, user *auth.UserState) Response {
-	route := c.d.router.Get(stateChangeCmd.Path)
-	if route == nil {
-		return InternalError("cannot find route for change")
-	}
-
 	// POSTs to sideload snaps must be a multipart/form-data file upload.
 	mpReader := multipart.NewReader(body, boundary)
 	form, errRsp := readForm(mpReader)

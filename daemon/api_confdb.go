@@ -62,8 +62,9 @@ func getView(c *Command, r *http.Request, _ *auth.UserState) Response {
 		return err
 	}
 
-	vars := muxVars(r)
-	account, schemaName, viewName := vars["account"], vars["confdb-schema"], vars["view"]
+	account := r.PathValue("account")
+	schemaName := r.PathValue("confdb-schema")
+	viewName := r.PathValue("view")
 
 	keysStr := r.URL.Query().Get("keys")
 	var keys []string
@@ -127,8 +128,9 @@ func setView(c *Command, r *http.Request, _ *auth.UserState) Response {
 		return err
 	}
 
-	vars := muxVars(r)
-	account, schemaName, viewName := vars["account"], vars["confdb-schema"], vars["view"]
+	account := r.PathValue("account")
+	schemaName := r.PathValue("confdb-schema")
+	viewName := r.PathValue("view")
 
 	type setAction struct {
 		Values map[string]any `json:"values"`

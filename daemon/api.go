@@ -25,8 +25,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gorilla/mux"
-
 	"github.com/snapcore/snapd/overlord/assertstate"
 	"github.com/snapcore/snapd/overlord/auth"
 	"github.com/snapcore/snapd/overlord/confdbstate"
@@ -110,12 +108,7 @@ func init() {
 	// here instead of in api_debug to avoid circular dependencies.
 	featureList = []featureEndpoint{}
 	for _, cmd := range api {
-		var path string
-		if cmd.Path != "" {
-			path = cmd.Path
-		} else {
-			path = cmd.PathPrefix
-		}
+		path := cmd.Path
 
 		if cmd.GET != nil {
 			featureList = append(featureList, featureEndpoint{Path: path, Method: "GET"})
@@ -174,8 +167,6 @@ func userFromRequest(st *state.State, req *http.Request) (*auth.UserState, error
 	user, err := auth.CheckMacaroon(st, macaroon, discharges)
 	return user, err
 }
-
-var muxVars = mux.Vars
 
 func storeFrom(d *Daemon) snapstate.StoreService {
 	st := d.overlord.State()

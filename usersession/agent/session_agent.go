@@ -30,7 +30,6 @@ import (
 	"time"
 
 	"github.com/godbus/dbus/v5"
-	"github.com/gorilla/mux"
 	"gopkg.in/tomb.v2"
 
 	"github.com/snapcore/snapd/dbusutil"
@@ -48,7 +47,7 @@ type SessionAgent struct {
 	listener        net.Listener
 	serve           *http.Server
 	tomb            tomb.Tomb
-	router          *mux.Router
+	router          *http.ServeMux
 	notificationMgr notification.NotificationManager
 
 	idle        *idleTracker
@@ -235,12 +234,12 @@ func (s *SessionAgent) tryConnectSessionBus() (err error) {
 }
 
 func (s *SessionAgent) addRoutes() {
-	s.router = mux.NewRouter()
+	s.router = http.NewServeMux()
 	for _, c := range restApi {
 		c.s = s
-		s.router.Handle(c.Path, c).Name(c.Path)
+		s.router.Handle(c.Path, c)
 	}
-	s.router.NotFoundHandler = NotFound("not found")
+	s.router.Handle("/", NotFound("not found"))
 }
 
 func (s *SessionAgent) Start() {

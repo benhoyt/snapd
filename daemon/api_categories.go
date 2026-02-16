@@ -35,11 +35,6 @@ var (
 )
 
 func getCategories(c *Command, r *http.Request, user *auth.UserState) Response {
-	route := c.d.router.Get(snapCmd.Path)
-	if route == nil {
-		return InternalError("cannot find route for categories")
-	}
-
 	theStore := storeFrom(c.d)
 
 	categories, err := theStore.Categories(r.Context(), user)

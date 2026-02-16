@@ -187,7 +187,7 @@ var (
 )
 
 func getSystemDetails(c *Command, r *http.Request, user *auth.UserState) Response {
-	wantedSystemLabel := muxVars(r)["label"]
+	wantedSystemLabel := r.PathValue("label")
 
 	deviceMgr := c.d.overlord.DeviceManager()
 
@@ -289,7 +289,7 @@ func postSystemsActionForm(c *Command, r *http.Request, contentTypeParams map[st
 
 func postSystemsActionJSON(c *Command, r *http.Request) Response {
 	var req systemActionRequest
-	systemLabel := muxVars(r)["label"]
+	systemLabel := r.PathValue("label")
 
 	decoder := json.NewDecoder(r.Body)
 	if err := decoder.Decode(&req); err != nil {

@@ -39,7 +39,7 @@ var allowedAccessoriesChanges = map[string]bool{
 }
 
 func getAccessoriesChange(c *Command, r *http.Request, user *auth.UserState) Response {
-	chID := muxVars(r)["id"]
+	chID := r.PathValue("id")
 	state := c.d.overlord.State()
 	state.Lock()
 	defer state.Unlock()
