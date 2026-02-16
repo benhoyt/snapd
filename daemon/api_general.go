@@ -50,7 +50,7 @@ import (
 var (
 	// see daemon.go:canAccess for details how the access is controlled
 	rootCmd = &Command{
-		Path:       "/",
+		Path:       "/{$}",
 		GET:        tbd,
 		ReadAccess: openAccess{},
 	}

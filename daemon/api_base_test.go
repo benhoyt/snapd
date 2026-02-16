@@ -731,22 +731,64 @@ version: %s
 }
 
 func handlerCommand(c *check.C, d *daemon.Daemon, req *http.Request) *daemon.Command {
-	// Use the router to find the handler
-	var cmd *daemon.Command
-	handler, pattern := d.RouterHandler(req)
-	if handler != nil {
-		var ok bool
-		cmd, ok = handler.(*daemon.Command)
-		if !ok {
-			c.Fatalf("no command for URL %q", req.URL)
+	// Since http.ServeMux wraps handlers and doesn't preserve the original type,
+	// we need to match the path manually against registered commands
+	path := req.URL.Path
+	var matchedCmd *daemon.Command
+	var matchedPattern string
+	
+	for _, cmd := range daemon.APICommands() {
+		pattern := cmd.Path
+		if matchesPattern(pattern, path) {
+			// Choose the most specific match (longest pattern)
+			if matchedCmd == nil || len(pattern) > len(matchedPattern) {
+				matchedCmd = cmd
+				matchedPattern = pattern
+			}
 		}
-		// Extract path values and set them on the request
-		// Pattern is like "/v2/snaps/{name}" and path is "/v2/snaps/hello"
-		setPathValues(req, pattern, req.URL.Path)
-	} else {
+	}
+	
+	if matchedCmd == nil {
 		c.Fatalf("no command for URL %q", req.URL)
 	}
-	return cmd
+	
+	// Extract path values and set them on the request
+	setPathValues(req, matchedPattern, path)
+	return matchedCmd
+}
+
+// matchesPattern checks if a URL path matches a ServeMux pattern
+func matchesPattern(pattern, path string) bool {
+	// Handle exact match with {$}
+	if strings.HasSuffix(pattern, "{$}") {
+		return path == strings.TrimSuffix(pattern, "{$}")
+	}
+	
+	// Handle wildcard patterns like "/v2/debug/pprof/{profile...}"
+	if strings.Contains(pattern, "{") && strings.HasSuffix(pattern, "...}") {
+		prefix := pattern[:strings.LastIndex(pattern, "{")]
+		return strings.HasPrefix(path, prefix)
+	}
+	
+	// Handle regular patterns with path parameters like "/v2/snaps/{name}"
+	patternParts := strings.Split(pattern, "/")
+	pathParts := strings.Split(path, "/")
+	
+	if len(patternParts) != len(pathParts) {
+		return false
+	}
+	
+	for i, part := range patternParts {
+		if strings.HasPrefix(part, "{") && strings.HasSuffix(part, "}") {
+			// This is a path parameter, it matches anything
+			continue
+		}
+		if part != pathParts[i] {
+			return false
+		}
+	}
+	
+	return true
 }
 
 // setPathValues extracts path parameters from the URL based on the pattern
