@@ -1489,8 +1489,9 @@ func (s *daemonSuite) TestNoticesRequestCanceledOnStop(c *check.C) {
 	c.Assert(err, check.IsNil)
 
 	gotReqC := make(chan struct{})
-	// http.ServeMux doesn't have a Use method for middleware like gorilla/mux did.
-	// The test still validates the stop-on-shutdown behavior without the middleware check.
+	// Note: The original test used gorilla/mux middleware to verify the request URL.
+	// Since http.ServeMux doesn't have a Use method for middleware, we skip that
+	// verification and only test the stop-on-shutdown behavior itself.
 	close(gotReqC)
 
 	c.Assert(d.Start(context.Background()), check.IsNil)

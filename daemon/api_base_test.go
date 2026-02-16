@@ -756,14 +756,15 @@ func setPathValues(req *http.Request, pattern, path string) {
 	patternParts := strings.Split(pattern, "/")
 	pathParts := strings.Split(path, "/")
 	
+	// Handle wildcard patterns like "/v2/debug/pprof/{profile...}"
+	if len(patternParts) > 0 && strings.HasSuffix(patternParts[len(patternParts)-1], "...}") {
+		key := strings.TrimSuffix(strings.TrimPrefix(patternParts[len(patternParts)-1], "{"), "...}")
+		value := strings.Join(pathParts[len(patternParts)-1:], "/")
+		req.SetPathValue(key, value)
+		return
+	}
+	
 	if len(patternParts) != len(pathParts) {
-		// Handle wildcard patterns like "/v2/debug/pprof/{profile...}"
-		if len(patternParts) > 0 && strings.HasSuffix(patternParts[len(patternParts)-1], "...}") {
-			key := strings.TrimSuffix(strings.TrimPrefix(patternParts[len(patternParts)-1], "{"), "...}")
-			value := strings.Join(pathParts[len(patternParts)-1:], "/")
-			req.SetPathValue(key, value)
-			return
-		}
 		return
 	}
 	
